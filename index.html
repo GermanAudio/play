@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>German Audio Learning Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0F172A; /* Slate 900 */
+            color: #E2E8F0; /* Slate 200 */
+        }
+        .scrollable-list::-webkit-scrollbar {
+            width: 8px;
+        }
+        .scrollable-list::-webkit-scrollbar-thumb {
+            background-color: #475569; /* Slate 600 */
+            border-radius: 4px;
+        }
+        .scrollable-list::-webkit-scrollbar-track {
+            background-color: #1E293B; /* Slate 800 */
+        }
+        /* Custom message box for alerts */
+        #messageBox {
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+        #messageBox.active {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <!-- Message Box -->
+    <div id="messageBox" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+        <div class="bg-slate-700 rounded-xl p-6 shadow-2xl max-w-sm w-full">
+            <h3 id="messageTitle" class="text-xl font-bold mb-3 text-red-400">Error</h3>
+            <p id="messageText" class="text-slate-200 mb-4"></p>
+            <button onclick="hideMessage()" class="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2 rounded-lg transition duration-200">
+                Close
+            </button>
+        </div>
+    </div>
+
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-extrabold text-teal-400">🇩🇪 Dein Audio Lerntool</h1>
+            <p class="text-slate-400 mt-2">Upload your German audio files for focused listening practice.</p>
+        </header>
+
+        <div id="app" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Left Column: Audio Library & Upload -->
+            <div class="lg:col-span-1 bg-slate-800 p-6 rounded-xl shadow-lg h-full flex flex-col">
+                <h2 class="text-2xl font-semibold mb-4 text-teal-300">Deine Bibliothek</h2>
+
+                <!-- User ID Display -->
+                <div class="text-xs font-mono bg-slate-700 p-2 rounded-lg mb-4 break-all">
+                    User ID: <span id="userIdDisplay" class="text-slate-300">Loading...</span>
+                </div>
+
+                <!-- Upload Section -->
+                <div class="mb-6 border-b border-slate-700 pb-4">
+                    <h3 class="text-lg font-medium mb-2">Audio hochladen</h3>
+                    <label for="audioFile" class="block text-sm font-medium mb-1 text-slate-400">Select MP3/WAV/M4A file (Max 500KB)</label>
+                    <input type="file" id="audioFile" accept="audio/*" class="w-full text-sm text-slate-300
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-lg file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-teal-600 file:text-white
+                        hover:file:bg-teal-700 cursor-pointer
+                        transition duration-200
+                    ">
+                    <button id="uploadButton" onclick="handleUpload()" disabled class="w-full mt-3 bg-teal-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-teal-600 transition duration-200 disabled:bg-slate-600 disabled:cursor-not-allowed flex items-center justify-center">
+                        <span id="uploadText">Upload and Save</span>
+                        <svg id="uploadSpinner" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </button>
+                    <p id="uploadStatus" class="text-sm mt-2 text-red-400 hidden"></p>
+                </div>
+
+                <!-- Audio List -->
+                <div class="flex-grow min-h-64 overflow-y-auto scrollable-list pr-2">
+                    <ul id="audioList" class="space-y-3">
+                        <li id="loadingIndicator" class="text-center text-slate-400 p-4">Loading audio files...</li>
+                        <li id="emptyState" class="text-center text-slate-400 p-4 hidden">
+                            No files yet. Upload your first German audio file above!
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Right Column: Player and Practice Area -->
+            <div class="lg:col-span-2 bg-slate-800 p-6 rounded-xl shadow-lg">
+                <h2 class="text-2xl font-semibold mb-4 text-teal-300">Wiedergabe & Training</h2>
+
+                <div id="playerArea" class="space-y-6">
+                    <div id="audioPlayerContainer" class="bg-slate-700 p-4 rounded-lg shadow-inner">
+                        <h3 class="text-xl font-medium mb-3 text-slate-100" id="currentAudioName">Select an audio file from the library</h3>
+                        <audio id="audioPlayer" controls class="w-full rounded-lg" disabled></audio>
+                        <p id="playerMessage" class="text-sm mt-2 text-slate-400">Audio playback controls will appear here.</p>
+                    </div>
+
+                    <!-- Focused Practice (Simulation) -->
+                    <div id="practiceArea" class="border border-slate-700 p-4 rounded-lg transition-all duration-300 opacity-50 pointer-events-none">
+                        <h3 class="text-xl font-medium mb-3 text-teal-300">Aktives Training (Transcription Focus)</h3>
+
+                        <!-- Hint Buttons -->
+                        <div class="flex space-x-2 mb-4">
+                            <button id="slowSpeedBtn" class="px-3 py-1 bg-slate-600 rounded-lg text-sm hover:bg-slate-500 transition duration-200">
+                                🐌 Slow (0.7x)
+                            </button>
+                            <button id="normalSpeedBtn" class="px-3 py-1 bg-slate-600 rounded-lg text-sm hover:bg-slate-500 transition duration-200">
+                                Normal (1.0x)
+                            </button>
+                        </div>
+
+                        <!-- Repetition Segment (Simulated) -->
+                        <div class="mb-4">
+                            <label for="transcribeInput" class="block text-slate-400 mb-1">Was hörst du? (What do you hear?)</label>
+                            <input type="text" id="transcribeInput" placeholder="Type the German sentence here..."
+                                class="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 text-slate-100 focus:ring-teal-500 focus:border-teal-500" disabled>
+                        </div>
+
+                        <div class="flex justify-between items-center">
+                            <button id="repeatSegmentBtn" class="flex items-center space-x-2 px-4 py-2 bg-teal-600 text-white rounded-lg font-semibold hover:bg-teal-700 transition duration-200 disabled:bg-slate-600" disabled>
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.564 1 1 0 01-1.895.698 5.002 5.002 0 00-8.985-2.222L10 9H4a1 1 0 01-1-1V3a1 1 0 011-1zm1 14.901a7.002 7.002 0 0111.601-2.564 1 1 0 01-1.895.698 5.002 5.002 0 00-8.985-2.222L10 11H4a1 1 0 01-1-1v5a1 1 0 011 1h5.101z" clip-rule="evenodd" />
+                                </svg>
+                                <span>Repeat Segment</span>
+                            </button>
+                            <button id="checkBtn" class="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition duration-200 disabled:bg-slate-600" disabled>
+                                Check
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, query, addDoc, doc, deleteDoc, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- GLOBAL SETUP ---
+        setLogLevel('Debug');
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let db;
+        let auth;
+        let currentUserId = null;
+        let audioCollectionRef = null;
+
+        // --- DOM Elements ---
+        const audioFileElement = document.getElementById('audioFile');
+        const uploadButton = document.getElementById('uploadButton');
+        const uploadText = document.getElementById('uploadText');
+        const uploadSpinner = document.getElementById('uploadSpinner');
+        const uploadStatus = document.getElementById('uploadStatus');
+        const audioListElement = document.getElementById('audioList');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const emptyState = document.getElementById('emptyState');
+        const userIdDisplay = document.getElementById('userIdDisplay');
+
+        const audioPlayer = document.getElementById('audioPlayer');
+        const currentAudioName = document.getElementById('currentAudioName');
+        const playerMessage = document.getElementById('playerMessage');
+        const practiceArea = document.getElementById('practiceArea');
+
+        const MAX_FILE_SIZE_BYTES = 500 * 1024; // 500 KB limit for Base64 storage
+
+        // --- Message Box Functions ---
+        const messageBox = document.getElementById('messageBox');
+        const messageTitle = document.getElementById('messageTitle');
+        const messageText = document.getElementById('messageText');
+
+        function showMessage(title, text) {
+            messageTitle.textContent = title;
+            messageText.textContent = text;
+            messageBox.classList.add('active');
+        }
+
+        window.hideMessage = () => {
+            messageBox.classList.remove('active');
+        }
+
+        // --- FIREBASE INITIALIZATION & AUTHENTICATION ---
+
+        async function initFirebase() {
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        currentUserId = user.uid;
+                        userIdDisplay.textContent = currentUserId;
+                        audioCollectionRef = collection(db, `artifacts/${appId}/users/${currentUserId}/german_audio_files`);
+                        uploadButton.disabled = false;
+                        listenForAudioFiles();
+                    } else {
+                        // User is signed out. Attempt to sign in.
+                        handleSignIn();
+                    }
+                });
+
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Firebase initialization failed:", error);
+                showMessage("Setup Error", "Failed to initialize the application. Please check the console for details.");
+            }
+        }
+
+        async function handleSignIn() {
+            try {
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Authentication failed:", error);
+                showMessage("Authentication Failed", "Could not sign you in. Some features may not work.");
+            }
+        }
+
+        // --- AUDIO UPLOAD LOGIC ---
+
+        function setUploadLoading(isLoading, status = '') {
+            uploadButton.disabled = isLoading;
+            uploadSpinner.classList.toggle('hidden', !isLoading);
+            uploadText.textContent = isLoading ? 'Uploading...' : 'Upload and Save';
+            if (status) {
+                uploadStatus.textContent = status;
+                uploadStatus.classList.remove('hidden');
+            } else {
+                uploadStatus.classList.add('hidden');
+            }
+        }
+
+        window.handleUpload = async function() {
+            const file = audioFileElement.files[0];
+            if (!file) {
+                showMessage("No File Selected", "Please select an audio file (MP3, WAV, or M4A) before uploading.");
+                return;
+            }
+
+            if (file.size > MAX_FILE_SIZE_BYTES) {
+                showMessage("File Too Large", `The file size is ${Math.round(file.size / 1024)}KB. The maximum allowed size is ${MAX_FILE_SIZE_BYTES / 1024}KB due to database storage limits. Please choose a smaller file.`);
+                return;
+            }
+
+            setUploadLoading(true, `Reading ${file.name}...`);
+
+            try {
+                const dataUrl = await readFileAsDataURL(file);
+
+                setUploadLoading(true, `Saving ${file.name} to Firestore...`);
+
+                const audioData = {
+                    name: file.name,
+                    dataUrl: dataUrl,
+                    timestamp: serverTimestamp(),
+                    userId: currentUserId
+                };
+
+                await addDoc(audioCollectionRef, audioData);
+
+                setUploadLoading(false, 'Upload successful!');
+                audioFileElement.value = ''; // Clear file input
+                setTimeout(() => setUploadLoading(false), 3000); // Clear status after 3s
+
+            } catch (error) {
+                console.error("Upload failed:", error);
+                setUploadLoading(false, 'Upload failed! See console for details.');
+                showMessage("Upload Error", `Could not save the audio file: ${error.message}`);
+            }
+        }
+
+        function readFileAsDataURL(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (event) => resolve(event.target.result);
+                reader.onerror = (error) => reject(error);
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // --- AUDIO LIST & PLAYBACK LOGIC ---
+
+        function listenForAudioFiles() {
+            if (!audioCollectionRef) return;
+
+            const audioQuery = query(audioCollectionRef);
+
+            onSnapshot(audioQuery, (snapshot) => {
+                const audioFiles = [];
+                snapshot.forEach(doc => {
+                    audioFiles.push({ id: doc.id, ...doc.data() });
+                });
+
+                // Sort by timestamp descending
+                audioFiles.sort((a, b) => (b.timestamp?.toMillis() || 0) - (a.timestamp?.toMillis() || 0));
+
+                renderAudioList(audioFiles);
+            }, (error) => {
+                console.error("Failed to fetch audio files:", error);
+                showMessage("Data Error", "Could not load audio library. Please try reloading the app.");
+                loadingIndicator.style.display = 'none';
+            });
+        }
+
+        function renderAudioList(files) {
+            audioListElement.innerHTML = '';
+            loadingIndicator.style.display = 'none';
+            emptyState.classList.toggle('hidden', files.length > 0);
+
+            files.forEach(file => {
+                const listItem = document.createElement('li');
+                listItem.className = 'flex justify-between items-center bg-slate-700 p-3 rounded-lg hover:bg-slate-600 transition duration-200 cursor-pointer';
+                listItem.setAttribute('data-id', file.id);
+                listItem.innerHTML = `
+                    <span class="truncate pr-2 font-medium text-slate-100">${file.name}</span>
+                    <div class="flex space-x-2">
+                        <button class="select-btn p-1 rounded-full text-teal-400 hover:text-teal-300" title="Select Audio">
+                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                        <button class="delete-btn p-1 rounded-full text-red-400 hover:text-red-300" title="Delete Audio">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                    </div>
+                `;
+                listItem.querySelector('.select-btn').onclick = () => selectAudio(file);
+                listItem.querySelector('.delete-btn').onclick = (e) => {
+                    e.stopPropagation();
+                    confirmDelete(file.id, file.name);
+                };
+                audioListElement.appendChild(listItem);
+            });
+        }
+
+        window.selectAudio = function(file) {
+            currentAudioName.textContent = file.name;
+            audioPlayer.src = file.dataUrl;
+            audioPlayer.disabled = false;
+            playerMessage.textContent = "Audio ready. Use the controls below.";
+            
+            // Enable practice area
+            practiceArea.classList.remove('opacity-50', 'pointer-events-none');
+            document.getElementById('transcribeInput').disabled = false;
+            document.getElementById('repeatSegmentBtn').disabled = false;
+            document.getElementById('checkBtn').disabled = false;
+        }
+
+        // --- DELETE LOGIC ---
+
+        function confirmDelete(id, name) {
+            messageTitle.textContent = "Confirm Deletion";
+            messageText.innerHTML = `Are you sure you want to delete the file: <strong>${name}</strong>? This cannot be undone.`;
+            messageBox.classList.add('active');
+
+            const confirmButton = document.createElement('button');
+            confirmButton.textContent = 'Yes, Delete';
+            confirmButton.className = 'w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2 rounded-lg transition duration-200 mt-3';
+            confirmButton.onclick = async () => {
+                hideMessage();
+                await deleteAudio(id);
+            };
+
+            const cancelButton = document.createElement('button');
+            cancelButton.textContent = 'Cancel';
+            cancelButton.className = 'w-full bg-slate-600 hover:bg-slate-700 text-white font-semibold py-2 rounded-lg transition duration-200 mt-2';
+            cancelButton.onclick = hideMessage;
+
+            messageText.appendChild(confirmButton);
+            messageText.appendChild(cancelButton);
+        }
+
+        async function deleteAudio(id) {
+            try {
+                const docRef = doc(db, `artifacts/${appId}/users/${currentUserId}/german_audio_files`, id);
+                await deleteDoc(docRef);
+                showMessage("Success", "Audio file successfully deleted.");
+            } catch (error) {
+                console.error("Deletion failed:", error);
+                showMessage("Deletion Error", `Could not delete the file: ${error.message}`);
+            }
+        }
+        
+        // --- PRACTICE FEATURE IMPLEMENTATION ---
+
+        document.getElementById('slowSpeedBtn').addEventListener('click', () => {
+            audioPlayer.playbackRate = 0.7;
+            playerMessage.textContent = "Playback speed set to 0.7x (Slow).";
+        });
+        
+        document.getElementById('normalSpeedBtn').addEventListener('click', () => {
+            audioPlayer.playbackRate = 1.0;
+            playerMessage.textContent = "Playback speed set to 1.0x (Normal).";
+        });
+
+        document.getElementById('repeatSegmentBtn').addEventListener('click', () => {
+            // A simple implementation of repeat: rewind 5 seconds and play
+            if (audioPlayer.currentTime > 5) {
+                audioPlayer.currentTime -= 5;
+            } else {
+                audioPlayer.currentTime = 0;
+            }
+            audioPlayer.play();
+            playerMessage.textContent = "Repeating segment...";
+        });
+
+        document.getElementById('checkBtn').addEventListener('click', () => {
+            const input = document.getElementById('transcribeInput').value.trim();
+            if (input.length > 0) {
+                showMessage("Practice Check", `You typed: "${input}". Since I don't know the correct transcript, imagine this is correct! You're doing great!`);
+                document.getElementById('transcribeInput').value = '';
+            } else {
+                showMessage("Practice Check", "Please type something before checking.");
+            }
+        });
+
+
+        // Initialize the application on load
+        initFirebase();
+
+    </script>
+</body>
+</html>
